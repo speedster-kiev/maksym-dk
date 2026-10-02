@@ -1,0 +1,33 @@
+# Environment & secrets
+.env
+.env.local
+.env*.local
+
+# Dependencies
+node_modules/
+package-lock.json
+yarn.lock
+
+# Build & output
+site/dist/
+out/
+build/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+.vscode/
+.idea/
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Temporary
+*.tmp
+*.swp
+.claude/
