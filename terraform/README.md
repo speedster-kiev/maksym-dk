@@ -23,13 +23,38 @@ Terraform configuration to set up the entire maksym.dk infrastructure on Scalewa
 
 ## Setup
 
-### 1. Get Scaleway API credentials
+### 1. Create a Terraform IAM application (recommended)
+
+For security, create a separate IAM application just for Terraform instead of using your owner API key.
 
 1. Log in: https://console.scaleway.com
-2. Go to **Account** → **API Keys** → **Generate New API Key**
-3. Download or copy the `access_key` and `secret_key`
+2. Go to **IAM** → **Applications** → **Create new application**
+3. Name: `terraform` (or similar)
+4. Create the app
+5. In the app, create a **policy** with these permissions:
+   - **Scope:** Organization (not project-specific)
+   - **Permissions:**
+     - `AccountProjectsWrite` (to create projects)
+     - `ObjectStorageBucketCreateDelete` (to create/delete buckets)
+     - `ObjectStorageACLManage` (to manage bucket policies)
+     - `IAMApplicationsManage` (to create IAM apps)
+     - `IAMPoliciesManage` (to create policies)
+     - `IAMAPIKeysManage` (to create API keys)
+     - `LambdaFunctionCreate` (to create function namespaces)
+     - `BillingAlertsWrite` (to create billing alerts)
+6. Generate an **API key** for this app
+7. Copy the `access_key` and `secret_key`
 
-### 2. Copy and fill `terraform.tfvars`
+### 2. (Alternative) Use your owner API key once, then rotate
+
+If you prefer, use your owner API key just for the initial `terraform apply`, then:
+1. Get it: https://console.scaleway.com/account/api-keys
+2. After Terraform succeeds, revoke this key
+3. Never use it again
+
+This works, but is less secure than step 1.
+
+### 3. Copy and fill `terraform.tfvars`
 
 ```bash
 cd terraform/
@@ -37,17 +62,17 @@ cp terraform.tfvars.example terraform.tfvars
 ```
 
 Edit `terraform.tfvars`:
-- Paste your `scaleway_access_key` and `scaleway_secret_key`
+- Paste the **Terraform app's** `scaleway_access_key` and `scaleway_secret_key` (from step 1 or 2)
 - Set your domain (e.g., `maksym.dk`)
 - Set your contact email
 
-### 3. Initialize Terraform
+### 4. Initialize Terraform
 
 ```bash
 terraform init
 ```
 
-### 4. Review what will be created
+### 5. Review what will be created
 
 ```bash
 terraform plan
@@ -55,7 +80,7 @@ terraform plan
 
 Review the output to ensure everything looks right.
 
-### 5. Apply the configuration
+### 6. Apply the configuration
 
 ```bash
 terraform apply
@@ -65,7 +90,7 @@ Terraform will ask for confirmation. Type `yes`.
 
 This takes 2–5 minutes. Watch for any errors.
 
-### 6. Save the outputs
+### 7. Save the outputs
 
 Once complete, Terraform prints sensitive values (API keys). **Save these or save the state file:**
 
@@ -81,7 +106,7 @@ terraform output fn_chat_api_key
 terraform output log_reader_api_key
 ```
 
-### 7. Update your `.env` file
+### 8. Update your `.env` file
 
 Copy the outputs into `.env` at the root of the project. Example:
 
@@ -96,7 +121,7 @@ LOG_S3_ACCESS_KEY=<log_reader_api_key>
 LOG_S3_SECRET_KEY=<log_reader_secret_key>
 ```
 
-### 8. Configure DNS at your registrar
+### 9. Configure DNS at your registrar
 
 Terraform creates the buckets and functions, but DNS is manual (outside Terraform for now).
 
@@ -112,7 +137,9 @@ For now, just verify buckets work:
 curl https://maksym-dk-site.fr-par.scw.cloud
 ```
 
-## Verify the setup
+## Verify everything works
+
+After step 9 (DNS configured), verify:
 
 ```bash
 # Test publish tool connectivity

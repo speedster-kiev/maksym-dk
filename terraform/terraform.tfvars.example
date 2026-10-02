@@ -1,7 +1,16 @@
 # Scaleway API credentials
-# Get from: https://console.scaleway.com/account/api-keys
-scaleway_access_key = "paste_your_access_key_here"
-scaleway_secret_key = "paste_your_secret_key_here"
+#
+# RECOMMENDED: Create a separate IAM application for Terraform instead of using your owner key.
+# See terraform/README.md for instructions.
+#
+# Owner key (only if creating a new Terraform app):
+#   https://console.scaleway.com/account/api-keys
+#
+# Terraform app key (preferred, more secure):
+#   Create in console: IAM → Applications → "terraform" app
+#   Give it: Projects > Create/Edit/Delete, IAM > Applications/Policies/API Keys manage
+scaleway_access_key = "paste_terraform_app_access_key_here"
+scaleway_secret_key = "paste_terraform_app_secret_key_here"
 
 # Scaleway region & zone (default: fr-par = Paris, EU)
 scaleway_region = "fr-par"
