@@ -1,6 +1,9 @@
 # Edge Services: HTTPS + custom domain in front of the site bucket.
-# Chain (request order): dns -> tls -> cache -> route -> waf -> backend (S3 bucket).
-# DNS records at the registrar stay manual. www -> apex redirect is not configured here yet.
+# Chain (request order): [dns] -> tls -> cache -> route -> waf -> backend (S3 bucket).
+# The DNS stage (custom domains) and head stage are NOT managed here: the Scaleway API
+# returns 404 "Not Implemented" on POST /dns-stages (2026-10-02, provider 2.84.0).
+# Attach maksym.dk and www.maksym.dk in the console (Edge Services > pipeline > Custom domain).
+# DNS records at the registrar and the www -> apex redirect are manual too.
 
 resource "scaleway_edge_services_plan" "site" {
   name       = "starter"
@@ -52,15 +55,4 @@ resource "scaleway_edge_services_tls_stage" "site" {
   pipeline_id         = scaleway_edge_services_pipeline.web.id
   cache_stage_id      = scaleway_edge_services_cache_stage.site.id
   managed_certificate = true
-}
-
-resource "scaleway_edge_services_dns_stage" "site" {
-  pipeline_id  = scaleway_edge_services_pipeline.web.id
-  tls_stage_id = scaleway_edge_services_tls_stage.site.id
-  fqdns        = [var.domain, "www.${var.domain}"]
-}
-
-resource "scaleway_edge_services_head_stage" "site" {
-  pipeline_id   = scaleway_edge_services_pipeline.web.id
-  head_stage_id = scaleway_edge_services_dns_stage.site.id
 }

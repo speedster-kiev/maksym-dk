@@ -5,11 +5,12 @@ Steps match `specs/spec.md` §11. Legend: [x] done, [ ] to do.
 ## Phase 0: Foundations
 - [x] 1. Repo scaffold, GitHub repo (public)
 - [x] 1b. Terraform written and `terraform validate` passes (projects, buckets, IAM, function namespace, Edge Services)
-- [ ] 2a. Bootstrap `terraform` IAM app + API key in console (terraform/README.md)
-- [x] 2b. `terraform apply` done except Edge Services (needs a plan subscription, see below); keys still to copy into `.env`
+- [x] 2a. Bootstrap `terraform` IAM app + API key in console (terraform/README.md)
+- [x] 2b. `terraform apply` complete (projects, buckets, IAM, function namespace, Edge plan + pipeline stages)
+- [ ] 2d. Copy publisher and log-reader keys from `terraform output` into `.env`
 - [ ] 2c. Billing alerts at €1 and €5 (console, not in Terraform)
-- [ ] 3. Verify placeholder on bucket website endpoint; anonymous GET on logs bucket returns 403
-- [ ] 4. DNS records at registrar; `https://maksym.dk` serves placeholder over TLS; www to apex redirect
+- [x] 3. Verify placeholder on bucket website endpoint; anonymous GET on logs bucket returns 403
+- [ ] 4. Console: attach `maksym.dk` + `www.maksym.dk` to the Edge pipeline (DNS stage is not creatable via API/Terraform), add DNS records at registrar, www to apex redirect; `https://maksym.dk` serves placeholder over TLS
 - [ ] 5. Confirm runtime facts (Node version, Edge Services price, prompt caching) and Terraform permission set names
 
 ## Phase 1: Walking skeleton

@@ -432,7 +432,7 @@ Each step has a **Done when** check.
 2. **Terraform.** Bootstrap the `terraform` IAM app and key in the console, then `terraform apply`: projects, buckets, IAM apps and keys, function namespace, Edge Services pipeline, placeholder `index.html`. Set billing alerts (€1, €5) in the console. Copy keys into `.env`.
    *Done when:* apply succeeds and the three IAM apps and both buckets exist.
 3. **Verify buckets.** *Done when:* placeholder loads on the bucket website endpoint; anonymous GET on the log bucket returns 403.
-4. **Domain + TLS.** Add the DNS records Edge Services asks for at the registrar; configure the `www` → apex redirect (console, not in Terraform yet).
+4. **Domain + TLS.** In the console, attach `maksym.dk` and `www.maksym.dk` to the Edge pipeline (Terraform manages the pipeline stages but not the DNS/head stage: the API returns 404 Not Implemented on `POST /dns-stages`), add the DNS records it asks for at the registrar, and configure the `www` → apex redirect.
    *Done when:* `https://maksym.dk` serves the placeholder with a valid certificate.
 5. **Check runtime facts.** Confirm Node 22 runtime, Edge Services pricing, prompt caching availability; update §6/§10 if different.
 

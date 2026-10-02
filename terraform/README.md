@@ -2,7 +2,7 @@
 
 Provisions two projects (`maksym-dk` for site/function/edge, `maksym-dk-private` for logs), both buckets (90-day log expiry), three least-privilege IAM apps with API keys, the Functions namespace (env + secrets) and the Edge Services pipeline.
 
-Not managed here: DNS records at the registrar, billing alerts (no provider resource; set €1 and €5 in the console), the function itself and `api.maksym.dk` (Phase 1), the www to apex redirect.
+Not managed here: Edge custom domains (DNS stage + head stage: the API returns 404 Not Implemented), DNS records at the registrar, billing alerts (no provider resource; set €1 and €5 in the console), the function itself and `api.maksym.dk` (Phase 1), the www to apex redirect.
 
 IAM in Scaleway scopes to projects, not buckets. That is why logs live in a separate project: `fn-chat` and `log-reader` get access to that project only.
 
