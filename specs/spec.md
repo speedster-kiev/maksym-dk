@@ -22,6 +22,7 @@ This document is the **how**: architecture, contracts, data formats, security, t
 | D9 | (default) No streaming in v1; one JSON response per chat message | 2026-10-02 | SSE streaming (P1) |
 | D10 | (default) Export LLM = same Scaleway endpoint, configurable model (resolves intent Q4: EU-hosted; private md files never leave the EU) | 2026-10-02 | Non-EU APIs |
 | D11 | Build order: walking skeleton (all infrastructure, placeholder content, bare styling) first; content and look and feel only after infrastructure is proven | 2026-10-02 | Design-first, content-first |
+| D12 | Infrastructure as code: Terraform (`terraform/`) provisions all Scaleway resources (buckets, IAM apps, functions, billing alerts) in one `terraform apply` | 2026-10-02 | Manual console setup (error-prone, harder to reproduce) |
 
 ---
 
@@ -71,6 +72,13 @@ maksym.dk/
 ├─ publish-rules.md           # what may / may never be published (edited by Maks)
 ├─ .env.example               # all config keys, no values
 ├─ package.json               # npm workspaces root, scripts below
+├─ terraform/                 # Infrastructure as code (Scaleway)
+│  ├─ main.tf                 # Buckets, IAM apps, functions namespace
+│  ├─ variables.tf            # Input variables
+│  ├─ outputs.tf              # API keys, endpoints (output to .env)
+│  ├─ terraform.tfvars.example # Config template (copy to terraform.tfvars)
+│  ├─ README.md               # Setup instructions
+│  └─ .gitignore              # (terraform.tfvars, .terraform/, tfstate ignored)
 ├─ site/
 │  ├─ template/index.html     # HTML template with {{placeholders}}
 │  ├─ assets/style.css
@@ -422,15 +430,32 @@ Per chat message (≈ 4,000 profile + 500 prompt/history input tokens, 300 outpu
 Each step has a **Done when** check.
 
 ### Phase 0: Foundations (≈ ½ day)
+
+**Note (D12):** Steps 2–3 are automated via Terraform. See `terraform/README.md` for setup.
+
 1. **Repo scaffold.** `git init`, layout from §3, `package.json` with workspaces and scripts (`publish`, `logs`, `eval`, `test`, `dev`), `.gitignore` (`.env`, `out/`, `site/dist/`, `node_modules`), `.env.example`.
-   *Done when:* `npm test` runs (0 tests) and the tree matches §3.
-2. **Scaleway project + IAM.** Create project, three IAM applications with policies from §6, API keys stored in `.env` / noted for function secrets. Billing alerts at €1 and €5.
-   *Done when:* the three apps exist with their policies; alerts visible.
-3. **Buckets.** Create Bucket A (website hosting, public policy) and Bucket B (private, 90-day lifecycle on `logs/`). Upload a placeholder `index.html` to A.
-   *Done when:* placeholder loads on the bucket website endpoint; anonymous GET on Bucket B returns 403.
-4. **Domain + TLS.** Edge Services pipeline on Bucket A, custom domains, DNS records at the registrar, `www` → apex.
+   *Done when:* `npm test` runs (0 tests) and the tree matches §3. ✅ Complete.
+
+2. **Scaleway infrastructure (Terraform).** Run `terraform apply` in the `terraform/` directory.
+   - Creates project `maksym-dk` in `fr-par`
+   - Creates Bucket A (public, website hosting) and Bucket B (private, 90-day logs lifecycle)
+   - Creates three IAM applications (publisher, fn-chat, log-reader) with minimal-privilege policies
+   - Creates Functions namespace with env vars and secrets
+   - Sets up billing alerts (€1, €5)
+   - Uploads placeholder `index.html` to Bucket A
+   
+   *Done when:* `terraform apply` succeeds, outputs show API keys and bucket endpoints, `curl https://maksym-dk-site.fr-par.scw.cloud` returns 200.
+
+3. **Configure `.env` from Terraform outputs.** Copy API keys from `terraform output` into `.env` at the repo root.
+   *Done when:* `.env` is filled, `npm run publish -- --dry-run` runs without errors.
+
+4. **Domain + TLS (manual).** Edge Services pipeline on Bucket A, custom domains, DNS records at the registrar, `www` → apex.
+   - Scaleway console: create Edge Services pipeline `maksym-dk-web`, origin = Bucket A website endpoint, custom domains = `maksym.dk` + `www.maksym.dk`, managed TLS.
+   - At your domain registrar: CNAME records for `maksym.dk` and `www` pointing to Edge Services endpoint.
+   
    *Done when:* `https://maksym.dk` serves the placeholder with a valid certificate.
-5. **Check runtime facts.** Confirm Node runtime version, Edge Services price, prompt caching availability; update §6/§10 if different.
+
+5. **Check runtime facts.** Confirm Node 22 runtime, Edge Services pricing, prompt caching availability; update §6/§10 if different.
 
 ### Phase 1: Walking skeleton, end to end (≈ 2 to 3 days)
 Scope rule for this phase: **minimum that proves the flow.** Plain semantic HTML, system fonts, ~30 lines of CSS, no design work. Content is whatever the export produces from the real source files; it does not need to be good yet.
