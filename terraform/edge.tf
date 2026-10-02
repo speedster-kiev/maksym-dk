@@ -2,9 +2,15 @@
 # Chain (request order): dns -> tls -> cache -> route -> waf -> backend (S3 bucket).
 # DNS records at the registrar stay manual. www -> apex redirect is not configured here yet.
 
+resource "scaleway_edge_services_plan" "site" {
+  name       = "starter"
+  project_id = scaleway_account_project.site.id
+}
+
 resource "scaleway_edge_services_pipeline" "web" {
   name       = "maksym-dk-web"
   project_id = scaleway_account_project.site.id
+  depends_on = [scaleway_edge_services_plan.site]
 }
 
 resource "scaleway_edge_services_backend_stage" "site" {

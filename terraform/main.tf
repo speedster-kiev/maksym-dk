@@ -144,18 +144,30 @@ resource "scaleway_iam_api_key" "publisher" {
   application_id     = scaleway_iam_application.publisher.id
   description        = "publisher"
   default_project_id = scaleway_account_project.site.id
+
+  lifecycle {
+    ignore_changes = [expires_at]
+  }
 }
 
 resource "scaleway_iam_api_key" "fn_chat" {
   application_id     = scaleway_iam_application.fn_chat.id
   description        = "fn-chat"
   default_project_id = scaleway_account_project.private.id
+
+  lifecycle {
+    ignore_changes = [expires_at]
+  }
 }
 
 resource "scaleway_iam_api_key" "log_reader" {
   application_id     = scaleway_iam_application.log_reader.id
   description        = "log-reader"
   default_project_id = scaleway_account_project.private.id
+
+  lifecycle {
+    ignore_changes = [expires_at]
+  }
 }
 
 # ---------------------------------------------------------------- Functions

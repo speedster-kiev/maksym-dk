@@ -6,7 +6,7 @@ Steps match `specs/spec.md` §11. Legend: [x] done, [ ] to do.
 - [x] 1. Repo scaffold, GitHub repo (public)
 - [x] 1b. Terraform written and `terraform validate` passes (projects, buckets, IAM, function namespace, Edge Services)
 - [ ] 2a. Bootstrap `terraform` IAM app + API key in console (terraform/README.md)
-- [ ] 2b. `terraform apply`; copy keys into `.env`
+- [x] 2b. `terraform apply` done except Edge Services (needs a plan subscription, see below); keys still to copy into `.env`
 - [ ] 2c. Billing alerts at €1 and €5 (console, not in Terraform)
 - [ ] 3. Verify placeholder on bucket website endpoint; anonymous GET on logs bucket returns 403
 - [ ] 4. DNS records at registrar; `https://maksym.dk` serves placeholder over TLS; www to apex redirect
