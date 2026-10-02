@@ -1,22 +1,15 @@
 {
   "name": "maksym-dk",
   "version": "1.0.0",
-  "description": "Personal homepage with \"Ask about Maks\" chat",
+  "private": true,
   "type": "module",
-  "engines": {
-    "node": "22"
-  },
-  "workspaces": [
-    "site",
-    "function",
-    "publish",
-    "tools"
-  ],
+  "engines": { "node": ">=22" },
+  "workspaces": ["function"],
   "scripts": {
     "publish": "node publish/index.js",
     "logs": "node tools/logs.js",
     "eval": "node tools/eval.js",
-    "test": "node --test 'tests/**/*.test.js'",
+    "test": "node --test",
     "dev": "node function/dev-server.js"
   }
 }

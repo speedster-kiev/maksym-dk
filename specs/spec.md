@@ -22,7 +22,7 @@ This document is the **how**: architecture, contracts, data formats, security, t
 | D9 | (default) No streaming in v1; one JSON response per chat message | 2026-10-02 | SSE streaming (P1) |
 | D10 | (default) Export LLM = same Scaleway endpoint, configurable model (resolves intent Q4: EU-hosted; private md files never leave the EU) | 2026-10-02 | Non-EU APIs |
 | D11 | Build order: walking skeleton (all infrastructure, placeholder content, bare styling) first; content and look and feel only after infrastructure is proven | 2026-10-02 | Design-first, content-first |
-| D12 | Infrastructure as code: Terraform (`terraform/`) provisions all Scaleway resources (buckets, IAM apps, functions, billing alerts) in one `terraform apply` | 2026-10-02 | Manual console setup (error-prone, harder to reproduce) |
+| D12 | Infrastructure as code: Terraform (`terraform/`) provisions projects, buckets, IAM, function namespace and Edge Services. Logs bucket lives in a second project because Scaleway IAM scopes to projects, not buckets | 2026-10-02 | Manual console setup; one project with bucket-level IAM (not supported) |
 
 ---
 
@@ -68,17 +68,11 @@ Principles:
 ```
 maksym.dk/
 ├─ intents/intent.md          # why / what
-├─ spec.md                    # how (this file)
+├─ specs/spec.md              # how (this file)
 ├─ publish-rules.md           # what may / may never be published (edited by Maks)
 ├─ .env.example               # all config keys, no values
 ├─ package.json               # npm workspaces root, scripts below
-├─ terraform/                 # Infrastructure as code (Scaleway)
-│  ├─ main.tf                 # Buckets, IAM apps, functions namespace
-│  ├─ variables.tf            # Input variables
-│  ├─ outputs.tf              # API keys, endpoints (output to .env)
-│  ├─ terraform.tfvars.example # Config template (copy to terraform.tfvars)
-│  ├─ README.md               # Setup instructions
-│  └─ .gitignore              # (terraform.tfvars, .terraform/, tfstate ignored)
+├─ terraform/                 # IaC: main.tf, edge.tf, variables.tf, outputs.tf, README.md
 ├─ site/
 │  ├─ template/index.html     # HTML template with {{placeholders}}
 │  ├─ assets/style.css
@@ -345,19 +339,20 @@ Uses read-only credentials for Bucket B (separate key from the function's write 
 
 | Resource | Name (default) | Config |
 |----------|----------------|--------|
-| Project | `maksym-dk` | Region `fr-par` for everything |
+| Project (site) | `maksym-dk` | Region `fr-par` for everything. Holds site bucket, edge, function, publisher and chat LLM access |
+| Project (private) | `maksym-dk-private` | Holds only the log bucket. Separate project because IAM scopes to projects, not buckets |
 | Bucket A | `maksym-dk-site` | Public read via bucket policy, website hosting on (`index.html`, error `404.html`) |
 | Edge Services pipeline | `maksym-dk-web` | Origin: Bucket A website endpoint; custom domains `maksym.dk`, `www.maksym.dk`; managed TLS certificate; redirect `www` → apex |
 | Bucket B | `maksym-dk-private` | Private (no public policy), lifecycle rule: expire `logs/` after 90 days |
 | Functions namespace | `maksym-dk` | Secrets + env vars (§8) |
 | Function | `chat` | Node 22 runtime, 256 MB memory, timeout 30 s, min scale 0, max scale 2, HTTP public, custom domain `api.maksym.dk` |
-| IAM app `fn-chat` | | Policy: `ObjectStorageObjectsWrite` on Bucket B only + Generative APIs access. Its API key goes into function secrets |
-| IAM app `publisher` | | Policy: `ObjectStorageObjectsWrite/Read` on Bucket A + Generative APIs access. Key lives in local `.env` |
-| IAM app `log-reader` | | Policy: `ObjectStorageObjectsRead` on Bucket B. Key in local `.env` |
-| Billing alerts | | Alerts at €1 and €5 per month on the project |
+| IAM app `fn-chat` | | Policy: `ObjectStorageObjectsWrite` on the private project + Generative APIs access on the site project. Its API key goes into function secrets |
+| IAM app `publisher` | | Policy: Objects read/write/delete on the site project + Generative APIs access. Key lives in local `.env` |
+| IAM app `log-reader` | | Policy: Objects read on the private project. Key in local `.env` as `LOG_S3_*` |
+| Billing alerts | | Alerts at €1 and €5 per month (console; no Terraform resource) |
 | DNS (registrar) | | `maksym.dk` / `www` → Edge Services as instructed in its console; `api` CNAME → function endpoint |
 
-Verify in the console during setup (not confirmed while writing this spec): exact Node runtime versions offered, Edge Services plan price, function custom domain TLS behaviour, and whether Generative APIs offer prompt caching (intent Q10). Bucket website endpoints alone do not give HTTPS on a custom domain, which is why Edge Services is in the plan.
+Terraform permission set names and Edge Services chain are validated syntactically only; confirm on first `apply`. Verify in the console during setup (not confirmed while writing this spec): exact Node runtime versions offered, Edge Services plan price, function custom domain TLS behaviour, and whether Generative APIs offer prompt caching (intent Q10). Bucket website endpoints alone do not give HTTPS on a custom domain, which is why Edge Services is in the plan.
 
 ---
 
@@ -431,30 +426,14 @@ Each step has a **Done when** check.
 
 ### Phase 0: Foundations (≈ ½ day)
 
-**Note (D12):** Steps 2–3 are automated via Terraform. See `terraform/README.md` for setup.
+**Note (D12):** infrastructure is Terraform, see `terraform/README.md`.
 
-1. **Repo scaffold.** `git init`, layout from §3, `package.json` with workspaces and scripts (`publish`, `logs`, `eval`, `test`, `dev`), `.gitignore` (`.env`, `out/`, `site/dist/`, `node_modules`), `.env.example`.
-   *Done when:* `npm test` runs (0 tests) and the tree matches §3. ✅ Complete.
-
-2. **Scaleway infrastructure (Terraform).** Run `terraform apply` in the `terraform/` directory.
-   - Creates project `maksym-dk` in `fr-par`
-   - Creates Bucket A (public, website hosting) and Bucket B (private, 90-day logs lifecycle)
-   - Creates three IAM applications (publisher, fn-chat, log-reader) with minimal-privilege policies
-   - Creates Functions namespace with env vars and secrets
-   - Sets up billing alerts (€1, €5)
-   - Uploads placeholder `index.html` to Bucket A
-   
-   *Done when:* `terraform apply` succeeds, outputs show API keys and bucket endpoints, `curl https://maksym-dk-site.fr-par.scw.cloud` returns 200.
-
-3. **Configure `.env` from Terraform outputs.** Copy API keys from `terraform output` into `.env` at the repo root.
-   *Done when:* `.env` is filled, `npm run publish -- --dry-run` runs without errors.
-
-4. **Domain + TLS (manual).** Edge Services pipeline on Bucket A, custom domains, DNS records at the registrar, `www` → apex.
-   - Scaleway console: create Edge Services pipeline `maksym-dk-web`, origin = Bucket A website endpoint, custom domains = `maksym.dk` + `www.maksym.dk`, managed TLS.
-   - At your domain registrar: CNAME records for `maksym.dk` and `www` pointing to Edge Services endpoint.
-   
+1. **Repo scaffold.** Layout from §3, `package.json`, `.gitignore`, `.env.example`, GitHub repo. *Done when:* `npm test` runs (0 tests) and the tree matches §3. ✅
+2. **Terraform.** Bootstrap the `terraform` IAM app and key in the console, then `terraform apply`: projects, buckets, IAM apps and keys, function namespace, Edge Services pipeline, placeholder `index.html`. Set billing alerts (€1, €5) in the console. Copy keys into `.env`.
+   *Done when:* apply succeeds and the three IAM apps and both buckets exist.
+3. **Verify buckets.** *Done when:* placeholder loads on the bucket website endpoint; anonymous GET on the log bucket returns 403.
+4. **Domain + TLS.** Add the DNS records Edge Services asks for at the registrar; configure the `www` → apex redirect (console, not in Terraform yet).
    *Done when:* `https://maksym.dk` serves the placeholder with a valid certificate.
-
 5. **Check runtime facts.** Confirm Node 22 runtime, Edge Services pricing, prompt caching availability; update §6/§10 if different.
 
 ### Phase 1: Walking skeleton, end to end (≈ 2 to 3 days)

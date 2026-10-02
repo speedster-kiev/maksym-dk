@@ -1,32 +1,7 @@
-# Scaleway API credentials
-#
-# RECOMMENDED: Create a separate IAM application for Terraform instead of using your owner key.
-# See terraform/README.md for instructions.
-#
-# Owner key (only if creating a new Terraform app):
-#   https://console.scaleway.com/account/api-keys
-#
-# Terraform app key (preferred, more secure):
-#   Create in console: IAM → Applications → "terraform" app
-#   Give it: Projects > Create/Edit/Delete, IAM > Applications/Policies/API Keys manage
-scaleway_access_key = "paste_terraform_app_access_key_here"
-scaleway_secret_key = "paste_terraform_app_secret_key_here"
+# Credentials of the dedicated "terraform" IAM application (see README.md), not the owner key
+scaleway_access_key = ""
+scaleway_secret_key = ""
+organization_id     = ""
 
-# Scaleway region & zone (default: fr-par = Paris, EU)
-scaleway_region = "fr-par"
-scaleway_zone   = "fr-par-1"
-
-# Your domain and contact email
 domain       = "maksym.dk"
-public_email = "your-email@example.com"
-
-# Email for billing alerts (€1 and €5)
-alert_email = "your-email@example.com"
-
-# Bucket and resource names (defaults should be fine)
-site_bucket_name          = "maksym-dk-site"
-logs_bucket_name          = "maksym-dk-private"
-function_namespace_name   = "maksym-dk"
-iam_publisher_name        = "publisher"
-iam_fn_chat_name          = "fn-chat"
-iam_log_reader_name       = "log-reader"
+public_email = ""

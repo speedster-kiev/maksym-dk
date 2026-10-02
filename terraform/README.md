@@ -1,194 +1,43 @@
-# Scaleway Infrastructure as Code
+# Terraform: Scaleway infrastructure
 
-Terraform configuration to set up the entire maksym.dk infrastructure on Scaleway.
+Provisions two projects (`maksym-dk` for site/function/edge, `maksym-dk-private` for logs), both buckets (90-day log expiry), three least-privilege IAM apps with API keys, the Functions namespace (env + secrets) and the Edge Services pipeline.
 
-## What gets created
+Not managed here: DNS records at the registrar, billing alerts (no provider resource; set €1 and €5 in the console), the function itself and `api.maksym.dk` (Phase 1), the www to apex redirect.
 
-✅ Scaleway project (`maksym-dk`)
-✅ Object Storage buckets:
-  - Bucket A (`maksym-dk-site`): public, website hosting
-  - Bucket B (`maksym-dk-private`): private, 90-day log lifecycle
-✅ IAM applications (3, least-privilege):
-  - `publisher`: write to Bucket A + Generative APIs
-  - `fn-chat`: write to Bucket B + Generative APIs
-  - `log-reader`: read Bucket B only
-✅ Functions namespace with environment variables & secrets
-✅ Billing alerts (€1 and €5)
+IAM in Scaleway scopes to projects, not buckets. That is why logs live in a separate project: `fn-chat` and `log-reader` get access to that project only.
 
-## Prerequisites
+## One-time bootstrap (console)
 
-1. **Terraform** >= 1.0: https://www.terraform.io/downloads
-2. **Scaleway account** with API credentials
-3. **Domain** (e.g., `maksym.dk`) — you'll configure DNS separately
+Terraform cannot create its own credentials. Create a dedicated app, not an owner key:
 
-## Setup
+1. IAM > Applications > create `terraform`.
+2. IAM > Policies > create a policy for that application with an **organization**-scoped rule and these permission sets: `ProjectManager`, `IAMManager`, `ObjectStorageFullAccess`, `FunctionsFullAccess`, `EdgeServicesFullAccess`. (Organization scope is needed because Terraform creates the projects.)
+3. Create an API key for the app.
 
-### 1. Create a Terraform IAM application (recommended)
+Permission set names could not be verified offline. If the console or `apply` rejects one, pick the closest valid name.
 
-For security, create a separate IAM application just for Terraform instead of using your owner API key.
-
-1. Log in: https://console.scaleway.com
-2. Go to **IAM** → **Applications** → **Create new application**
-3. Name: `terraform` (or similar)
-4. Create the app
-5. In the app, create a **policy** with these permissions:
-   - **Scope:** Organization (not project-specific)
-   - **Permissions:**
-     - `AccountProjectsWrite` (to create projects)
-     - `ObjectStorageBucketCreateDelete` (to create/delete buckets)
-     - `ObjectStorageACLManage` (to manage bucket policies)
-     - `IAMApplicationsManage` (to create IAM apps)
-     - `IAMPoliciesManage` (to create policies)
-     - `IAMAPIKeysManage` (to create API keys)
-     - `LambdaFunctionCreate` (to create function namespaces)
-     - `BillingAlertsWrite` (to create billing alerts)
-6. Generate an **API key** for this app
-7. Copy the `access_key` and `secret_key`
-
-### 2. (Alternative) Use your owner API key once, then rotate
-
-If you prefer, use your owner API key just for the initial `terraform apply`, then:
-1. Get it: https://console.scaleway.com/account/api-keys
-2. After Terraform succeeds, revoke this key
-3. Never use it again
-
-This works, but is less secure than step 1.
-
-### 3. Copy and fill `terraform.tfvars`
+## Run
 
 ```bash
-cd terraform/
-cp terraform.tfvars.example terraform.tfvars
-```
-
-Edit `terraform.tfvars`:
-- Paste the **Terraform app's** `scaleway_access_key` and `scaleway_secret_key` (from step 1 or 2)
-- Set your domain (e.g., `maksym.dk`)
-- Set your contact email
-
-### 4. Initialize Terraform
-
-```bash
+cp terraform.tfvars.example terraform.tfvars   # gitignored; fill in keys, organization_id, email
 terraform init
-```
-
-### 5. Review what will be created
-
-```bash
 terraform plan
-```
-
-Review the output to ensure everything looks right.
-
-### 6. Apply the configuration
-
-```bash
 terraform apply
 ```
 
-Terraform will ask for confirmation. Type `yes`.
-
-This takes 2–5 minutes. Watch for any errors.
-
-### 7. Save the outputs
-
-Once complete, Terraform prints sensitive values (API keys). **Save these or save the state file:**
+Then copy outputs into the repo-root `.env`:
 
 ```bash
-terraform output -json > outputs.json  # Save for later reference
+terraform output publisher_access_key
+terraform output -raw publisher_secret_key
+terraform output log_reader_access_key
+terraform output -raw log_reader_secret_key
 ```
 
-Or view outputs individually:
-
-```bash
-terraform output publisher_api_key
-terraform output fn_chat_api_key
-terraform output log_reader_api_key
-```
-
-### 8. Update your `.env` file
-
-Copy the outputs into `.env` at the root of the project. Example:
-
-```bash
-# From terraform output
-S3_ACCESS_KEY=<publisher_api_key>
-S3_SECRET_KEY=<publisher_secret_key>
-LLM_API_KEY=<publisher_secret_key>  # Same as above
-
-# For logs CLI (separate credentials)
-LOG_S3_ACCESS_KEY=<log_reader_api_key>
-LOG_S3_SECRET_KEY=<log_reader_secret_key>
-```
-
-### 9. Configure DNS at your registrar
-
-Terraform creates the buckets and functions, but DNS is manual (outside Terraform for now).
-
-At your domain registrar (GoDaddy, Namecheap, etc.):
-
-- [ ] Add CNAME for `maksym.dk` → your Scaleway Edge Services endpoint (you'll add Edge Services next)
-- [ ] Add CNAME for `www.maksym.dk` → same endpoint
-
-For now, just verify buckets work:
-
-```bash
-# Should return 200 with your placeholder HTML
-curl https://maksym-dk-site.fr-par.scw.cloud
-```
-
-## Verify everything works
-
-After step 9 (DNS configured), verify:
-
-```bash
-# Test publish tool connectivity
-npm run publish -- --dry-run
-
-# Check buckets exist
-aws s3 ls --endpoint-url https://s3.fr-par.scw.cloud
-```
-
-## Next steps
-
-1. **Edge Services + custom domain** (Phase 0, step 4): Add manually in Scaleway console for now
-2. **Phase 1: Walking skeleton** (2–3 days): Build site, chat, publish pipeline
-
-## Terraform state management
-
-⚠️ **Important:** `terraform.tfstate` contains sensitive data (API keys). **Do not commit it to git.**
-
-It's already in `.gitignore`, but be careful:
-- Never share the state file
-- Back it up securely if you need disaster recovery
-- For team collaboration later, consider Terraform Cloud
-
-## Destroying everything
-
-To tear down all resources (useful for testing):
-
-```bash
-terraform destroy
-```
-
-Type `yes` to confirm. This deletes buckets, IAM apps, functions namespace, etc. Use with caution!
-
-## Troubleshooting
-
-**Error: "access_key not set"**
-→ Check `terraform.tfvars` has `scaleway_access_key` and `scaleway_secret_key` filled in.
-
-**Error: "Invalid project ID"**
-→ Terraform creates the project; if this fails, the project may already exist. Check Scaleway console.
-
-**API key not working after apply**
-→ Scaleway API keys may take a few seconds to activate. Wait 30 seconds and retry.
-
-**Buckets created but can't access**
-→ Check bucket policy (Bucket A should be public). Run `terraform apply` again if needed.
+`LLM_API_KEY` for the publish tool is the publisher secret key. The function's keys are injected as function secrets by Terraform.
 
 ## Notes
 
-- Region is set to `fr-par` (Paris, EU) in variables — change in `terraform.tfvars` if needed
-- All resources are tagged with `environment = "production"`
-- Function secrets are stored securely in Scaleway and not in state
+- **State holds secrets.** `terraform.tfstate` contains every API key in plaintext. It is gitignored; keep it local and never share it.
+- After apply, add the DNS records the Edge Services pipeline asks for (see the console) at your registrar.
+- `terraform destroy` removes everything, including the buckets' contents only if they are empty; empty them first.
