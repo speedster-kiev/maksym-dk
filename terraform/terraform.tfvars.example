@@ -1,0 +1,23 @@
+# Scaleway API credentials
+# Get from: https://console.scaleway.com/account/api-keys
+scaleway_access_key = "paste_your_access_key_here"
+scaleway_secret_key = "paste_your_secret_key_here"
+
+# Scaleway region & zone (default: fr-par = Paris, EU)
+scaleway_region = "fr-par"
+scaleway_zone   = "fr-par-1"
+
+# Your domain and contact email
+domain       = "maksym.dk"
+public_email = "your-email@example.com"
+
+# Email for billing alerts (€1 and €5)
+alert_email = "your-email@example.com"
+
+# Bucket and resource names (defaults should be fine)
+site_bucket_name          = "maksym-dk-site"
+logs_bucket_name          = "maksym-dk-private"
+function_namespace_name   = "maksym-dk"
+iam_publisher_name        = "publisher"
+iam_fn_chat_name          = "fn-chat"
+iam_log_reader_name       = "log-reader"
